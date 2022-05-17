@@ -1,6 +1,4 @@
-FROM python:3.8-alpine
-
-RUN apk add gcc libc-dev
+FROM python:3.10-alpine
 
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
