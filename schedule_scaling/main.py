@@ -23,9 +23,6 @@ def get_kube_api():
     return pykube.HTTPClient(pykube.KubeConfig.from_env())
 
 
-api = get_kube_api()
-
-
 def deployments_to_scale():
     """ Getting the deployments configured for schedule scaling """
     deployments = []
@@ -193,6 +190,9 @@ def scale_hpa(name, namespace, min_replicas, max_replicas):
 if __name__ == "__main__":
     logging.info("Main loop started")
     while True:
+        global api
+        api = get_kube_api()
+
         logging.debug("Waiting until the next minute")
         sleep(get_wait_sec())
         logging.debug("Getting deployments")
