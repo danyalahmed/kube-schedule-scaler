@@ -10,37 +10,6 @@ metadata:
   name: kube-schedule-scaler
   namespace: kube-schedule-scaler
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: kube-schedule-scaler
-subjects:
-- kind: ServiceAccount
-  name: kube-schedule-scaler
-  namespace: kube-schedule-scaler
-roleRef:
-  kind: ClusterRole
-  name: kube-schedule-scaler
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: kube-schedule-scaler
-rules:
-- apiGroups: [""]
-  resources: ["namespaces"]
-  verbs: ["get", "list"]
-- apiGroups: ["apps"]
-  resources: ["deployments"]
-  verbs: ["get", "list"]
-- apiGroups: ["apps"]
-  resources: ["deployments/scale"]
-  verbs: ["patch"]
-- apiGroups: ["autoscaling", "extensions"]
-  resources: ["horizontalpodautoscalers"]
-  verbs: ["get", "list", "patch"]
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -64,11 +33,87 @@ spec:
         runAsUser: 1000
       containers:
       - name: kube-schedule-scaler
-        image: "public.ecr.aws/citizensadvice/kube-schedule-scaler:master"
+        env:
+          - name: "NAMESPACES_TO_SCALE"
+            valueFrom:
+              configMapKeyRef:
+                name: kube-schedule-scaler-cm
+                key: "NAMESPACES_TO_SCALE"
+        image: "registry.dev/kube-schedule-scaler"
         imagePullPolicy: Always
         resources:
           limits:
+            cpu: 100m
             memory: 128Mi
           requests:
             cpu: 50m
             memory: 128Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-schedule-scaler-cm
+  namespace: kube-schedule-scaler
+data:
+  NAMESPACES_TO_SCALE: "kube-schedule-scaler default"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kube-schedule-scaler
+  namespace: kube-schedule-scaler
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments/scale"]
+  verbs: ["patch"]
+- apiGroups: ["autoscaling", "extensions"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kube-schedule-scaler
+  namespace: kube-schedule-scaler
+subjects:
+  - kind: ServiceAccount
+    name: kube-schedule-scaler
+    namespace: kube-schedule-scaler
+roleRef:
+  kind: Role
+  name: kube-schedule-scaler
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kube-schedule-scaler
+  namespace: default
+rules:
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments" ]
+    verbs: [ "get", "list" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments/scale" ]
+    verbs: [ "patch" ]
+  - apiGroups: [ "autoscaling", "extensions" ]
+    resources: [ "horizontalpodautoscalers" ]
+    verbs: [ "get", "list", "patch" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kube-schedule-scaler
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: kube-schedule-scaler
+    namespace: kube-schedule-scaler
+roleRef:
+  kind: Role
+  name: kube-schedule-scaler
+  apiGroup: rbac.authorization.k8s.io
