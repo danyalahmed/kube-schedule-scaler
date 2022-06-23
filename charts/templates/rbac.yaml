@@ -1,0 +1,36 @@
+{{- range .Values.namespacesToWatch }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "kube-schedule-scaler.fullname" $ }}-rl
+  namespace: {{ . }}
+  labels:
+    {{- include "kube-schedule-scaler.labels" $ | nindent 4 }}
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments/scale"]
+  verbs: ["patch"]
+- apiGroups: ["autoscaling", "extensions"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "kube-schedule-scaler.fullname" $ }}-rb
+  namespace: {{ . }}
+  labels:
+    {{- include "kube-schedule-scaler.labels" $ | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kube-schedule-scaler.serviceAccountName" $ }}
+    namespace: kube-schedule-scaler
+roleRef:
+  kind: Role
+  name: {{ include "kube-schedule-scaler.fullname" $ }}-rl
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
