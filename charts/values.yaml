@@ -57,5 +57,5 @@ namespacesToWatch:
   - kube-schedule-scaler
 
 env:
-  LOG_LEVEL: DEBUG
+#  LOG_LEVEL: DEBUG
   DELAY: 1 # wait between watch/scale in minutes
