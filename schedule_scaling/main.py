@@ -3,7 +3,6 @@
 import os
 import json
 import logging
-import dateutil.tz
 from datetime import datetime, timedelta
 from time import sleep
 
@@ -23,17 +22,12 @@ def get_kube_api():
     return pykube.HTTPClient(pykube.KubeConfig.from_env())
 
 
-def deployments_to_scale():
-    """ Getting the deployments configured for schedule scaling """
+def deployments_to_scale(namespaces):
+    """ Getting the deployments configured for schedule scaling
+    :param namespaces: namespace to watch/scale deployments in
+    """
     deployments = []
     scaling_dict = {}
-    namespaces = os.getenv("NAMESPACES_TO_WATCH")
-    if namespaces:
-        namespaces = os.getenv("NAMESPACES_TO_WATCH").split(" ")
-        logging.debug("Namespaces to watch from env: %s", namespaces)
-    else:
-        logging.debug("Getting namespace from k8s api as none found in env")
-        namespaces = pykube.Namespace.objects(api)
 
     logging.debug("Getting deployments")
     for namespace in list(namespaces):
@@ -233,12 +227,20 @@ if __name__ == "__main__":
         global api
         api = get_kube_api()
 
+        namespaces = os.getenv("NAMESPACES_TO_WATCH")
+        if namespaces:
+            namespaces = os.getenv("NAMESPACES_TO_WATCH").split(" ")
+            logging.debug("Namespaces to watch from env: %s", namespaces)
+        else:
+            logging.debug("Getting namespace from k8s api as none found in env")
+            namespaces = pykube.Namespace.objects(api)
+
         now = round_to_minute(datetime.now())
         schedule_window_sec = max(60, (now - last_process_time).total_seconds())
         last_process_time = now
 
-        for d, s in deployments_to_scale().items():
+        for d, s in deployments_to_scale(namespaces).items():
             process_deployment(d, s, now, schedule_window_sec)
 
-        logging.debug("Waiting for %s minutes", int(os.getenv("DELAY",1)))
+        logging.debug("Waiting for the next (%s) minutes", int(os.getenv("DELAY",1)))
         sleep(get_wait_sec())
