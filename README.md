@@ -90,3 +90,9 @@ $ kubectl logs -n kube-schedule-scaler kube-schedule-scaler-844b6d5888-p9tc4 | g
 ```
 
 You can change the log level using the `LOG_LEVEL` environment variable (e.g. `LOG_LEVEL=DEBUG`)
+
+## Changes in this fork
+I have added the ability to read namespace list from environment variable on startup. If this is not provided then it will query k8s api as designed in original
+The reason for this is when you cannot use ClusterRole/ClusterRolebindings.
+
+There is also a helm chart added to deploy it with Role/Rolebinding for the namespaces (reads from env in values file)
