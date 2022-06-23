@@ -27,7 +27,16 @@ def deployments_to_scale():
     """ Getting the deployments configured for schedule scaling """
     deployments = []
     scaling_dict = {}
-    for namespace in list(pykube.Namespace.objects(api)):
+    namespaces = os.getenv("NAMESPACES_TO_WATCH")
+    if namespaces:
+        namespaces = os.getenv("NAMESPACES_TO_WATCH").split(" ")
+        logging.debug("Namespaces to watch from env: %s", namespaces)
+    else:
+        logging.debug("Getting namespace from k8s api as none found in env")
+        namespaces = pykube.Namespace.objects(api)
+
+    logging.debug("Getting deployments")
+    for namespace in list(namespaces):
         namespace = str(namespace)
         for deployment in pykube.Deployment.objects(api).filter(namespace=namespace):
             annotations = deployment.metadata.get("annotations", {})
@@ -76,7 +85,7 @@ def round_to_minute(time):
 def get_wait_sec():
     """ Return the number of seconds to wait before the next minute """
     now = datetime.now()
-    future = round_to_minute(now) + timedelta(minutes=1)
+    future = round_to_minute(now) + timedelta(minutes=int(os.getenv("DELAY", 1)))
     return (future - now).total_seconds()
 
 
@@ -157,8 +166,8 @@ def scale_deployment(name, namespace, replicas):
             # work. So if we get an 403 pring a warning and try again, this time with full resource update.
             if e.code == 403:
                 logging.warning(
-                        "Failed to apply patch on a 'scale' subresource, failing back to a full update. "
-                        "Consider upgrading RBAC deployment.")
+                    "Failed to apply patch on a 'scale' subresource, failing back to a full update. "
+                    "Consider upgrading RBAC deployment.")
                 deployment.replicas = replicas
                 deployment.update()
             else:
@@ -224,13 +233,12 @@ if __name__ == "__main__":
         global api
         api = get_kube_api()
 
-        logging.debug("Waiting until the next minute")
-        sleep(get_wait_sec())
-
         now = round_to_minute(datetime.now())
         schedule_window_sec = max(60, (now - last_process_time).total_seconds())
         last_process_time = now
 
-        logging.debug("Getting deployments")
         for d, s in deployments_to_scale().items():
             process_deployment(d, s, now, schedule_window_sec)
+
+        logging.debug("Waiting for %s minutes", int(os.getenv("DELAY",1)))
+        sleep(get_wait_sec())
