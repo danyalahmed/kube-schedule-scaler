@@ -28,7 +28,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: {{ include "kube-schedule-scaler.serviceAccountName" $ }}
-    namespace: kube-schedule-scaler
+    namespace: {{ $.Release.Namespace }}
 roleRef:
   kind: Role
   name: {{ include "kube-schedule-scaler.fullname" $ }}-rl
